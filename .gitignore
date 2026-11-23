@@ -1,0 +1,11 @@
+.venv/
+.vscode/
+.local/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+*.log
+spark-checkpoints/
+data/*.csv
+!data/.gitkeep

@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from confluent_kafka import Consumer, KafkaError, Producer
 
 from common.config import settings
-from common.contracts import CandleEvent, SignalEvent
+from common.contracts import CandleEvent, SignalEvent, format_timestamp
 from strategies.registry import create_strategy
 
 logging.basicConfig(
@@ -16,6 +16,11 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
 )
 logger = logging.getLogger("strategies.runner")
+
+
+def _delivery_report(err, msg) -> None:
+    if err is not None:
+        logger.error("Error publicando señal en Kafka: %s", err)
 
 
 def run(strategy_name: str, from_beginning: bool = False) -> None:
@@ -84,12 +89,13 @@ def run(strategy_name: str, from_beginning: bool = False) -> None:
                 symbol=sig.symbol,
                 signal=sig.signal,
                 precio_referencia=sig.precio_referencia,
-                timestamp=datetime.now(timezone.utc),
+                timestamp=format_timestamp(datetime.now(timezone.utc)),
             )
             producer.produce(
                 topic=settings.topic_signals,
                 key=live_signal.symbol.encode("utf-8"),
                 value=live_signal.to_json().encode("utf-8"),
+                callback=_delivery_report,
             )
             producer.poll(0)
             logger.info("SEÑAL EMITIDA -> %s", live_signal.to_json())

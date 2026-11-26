@@ -40,11 +40,13 @@ def test_ema_crossover_emits_buy_and_sell_on_trend_reversals():
 
 def test_ema_deduplicates_same_candle_and_isolates_symbols():
     strategy = EmaCrossoverStrategy(fast_period=2, slow_period=4)
-    c1 = _make_candles([1.10], symbol="EURUSD")[0]
-    c2 = _make_candles([1.25], symbol="GBPUSD")[0]
-    assert strategy.on_candle(c1) is None
-    assert strategy.on_candle(c1) is None  # duplicada ignorada
+    c1, c2 = _make_candles([1.10, 1.11], symbol="EURUSD")
+    gbp = _make_candles([1.25], symbol="GBPUSD")[0]
     assert strategy.on_candle(c2) is None
+    assert strategy.on_candle(c2) is None  # duplicada ignorada
+    assert strategy.on_candle(c1) is None  # vela anterior fuera de orden ignorada
+    assert strategy._states["EURUSD"].count == 1
+    assert strategy.on_candle(gbp) is None
     assert set(strategy._states.keys()) == {"EURUSD", "GBPUSD"}
 
 

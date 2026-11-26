@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from ib_async import Forex, IB, Ticker
 
 from common.config import settings
-from common.contracts import TickEvent
+from common.contracts import TickEvent, format_timestamp
 from producer.kafka_publisher import TickKafkaPublisher
 
 logging.basicConfig(
@@ -43,7 +43,7 @@ def build_tick_from_ticker(symbol: str, ticker: Ticker) -> TickEvent | None:
         symbol=symbol,
         bid=round(float(ticker.bid), 6),
         ask=round(float(ticker.ask), 6),
-        timestamp=ts,
+        timestamp=format_timestamp(ts),
     )
 
 
@@ -93,7 +93,9 @@ def run() -> None:
     tickers_by_symbol: dict[str, Ticker] = {}
     for symbol in settings.symbols:
         contract = Forex(symbol)
-        ib.qualifyContracts(contract)
+        qualified = ib.qualifyContracts(contract)
+        if not qualified:
+            raise ValueError(f"No se pudo calificar contrato FOREX en IBKR: {symbol}")
         ticker = ib.reqMktData(
             contract,
             genericTickList="",

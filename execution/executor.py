@@ -11,7 +11,7 @@ from confluent_kafka import Consumer, KafkaError
 
 from common.config import settings
 from common.contracts import SignalEvent
-from execution.ib_client import IBPaperExecutor
+from execution.ib_client import IBPaperExecutor, OrderExecutionReport
 from execution.risk import RiskManager
 
 logging.basicConfig(
@@ -19,6 +19,13 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
 )
 logger = logging.getLogger("execution.executor")
+
+REJECTED_ORDER_STATUSES = {"Cancelled", "ApiCancelled", "Inactive"}
+
+
+def should_record_execution(report: OrderExecutionReport) -> bool:
+    """Return True only when an IBKR order was accepted or filled."""
+    return report.filled > 0 or report.status not in REJECTED_ORDER_STATUSES
 
 
 def append_audit_record(audit_path: Path, record: dict) -> None:
@@ -120,22 +127,35 @@ def run(dry_run: bool = False, audit_file: str = "data/execution_audit.jsonl") -
             else:
                 try:
                     report = ib_executor.place_market_order(sig.symbol, sig.signal, decision.order_size)
-                    risk_manager.record_execution(sig, now=now)
+                    recorded = should_record_execution(report)
+                    if recorded:
+                        risk_manager.record_execution(sig, now=now)
                     audit["execution"] = {
                         "order_id": report.order_id,
                         "status": report.status,
                         "filled": report.filled,
                         "avg_fill_price": report.avg_fill_price,
+                        "recorded_in_risk": recorded,
                     }
-                    logger.info(
-                        "ORDEN ENVIADA A IBKR PAPER #%d | %s %d %s | status=%s | fill=%.5f",
-                        report.order_id,
-                        sig.signal,
-                        decision.order_size,
-                        sig.symbol,
-                        report.status,
-                        report.avg_fill_price,
-                    )
+                    if recorded:
+                        logger.info(
+                            "ORDEN ENVIADA A IBKR PAPER #%d | %s %d %s | status=%s | fill=%.5f",
+                            report.order_id,
+                            sig.signal,
+                            decision.order_size,
+                            sig.symbol,
+                            report.status,
+                            report.avg_fill_price,
+                        )
+                    else:
+                        logger.warning(
+                            "ORDEN NO EJECUTADA EN IBKR PAPER #%d | %s %d %s | status=%s (posición no modificada)",
+                            report.order_id,
+                            sig.signal,
+                            decision.order_size,
+                            sig.symbol,
+                            report.status,
+                        )
                 except Exception as exc:
                     audit["execution"] = {"status": "ERROR", "error": str(exc)}
                     logger.exception("Error enviando orden a IBKR Paper: %s", exc)

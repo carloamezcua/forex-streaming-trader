@@ -8,7 +8,7 @@ import time
 from datetime import datetime, timezone
 
 from common.config import settings
-from common.contracts import TickEvent
+from common.contracts import TickEvent, format_timestamp
 from producer.kafka_publisher import TickKafkaPublisher
 
 logging.basicConfig(
@@ -63,7 +63,7 @@ def run(interval_sec: float, max_ticks: int | None, seed: int | None) -> None:
             for symbol in settings.symbols:
                 next_mid, bid, ask = generate_next_price(mids[symbol], step=step, rng=rng)
                 mids[symbol] = next_mid
-                tick = TickEvent(symbol=symbol, bid=bid, ask=ask, timestamp=now)
+                tick = TickEvent(symbol=symbol, bid=bid, ask=ask, timestamp=format_timestamp(now))
                 publisher.publish(tick)
                 emitted += 1
                 logger.info("MockTick #%d -> %s", emitted, tick.to_json())

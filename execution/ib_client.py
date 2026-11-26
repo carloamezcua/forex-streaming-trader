@@ -68,7 +68,9 @@ class IBPaperExecutor:
     def place_market_order(self, symbol: str, side: str, quantity: int) -> OrderExecutionReport:
         """Submit a Forex market order to the Paper Trading account and await initial status."""
         contract = Forex(symbol)
-        self._ib.qualifyContracts(contract)
+        qualified = self._ib.qualifyContracts(contract)
+        if not qualified:
+            raise ValueError(f"No se pudo calificar contrato FOREX en IBKR: {symbol}")
         order = MarketOrder(action=side, totalQuantity=quantity)
         trade = self._ib.placeOrder(contract, order)
 

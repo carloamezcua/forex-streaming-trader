@@ -43,7 +43,7 @@ class RsiMeanReversionStrategy(BaseStrategy):
     def on_candle(self, candle: CandleEvent) -> SignalEvent | None:
         state = self._states.setdefault(candle.symbol, _RsiState())
 
-        if state.last_inicio == candle.inicio:
+        if state.last_inicio is not None and candle.inicio <= state.last_inicio:
             return None
         state.last_inicio = candle.inicio
 

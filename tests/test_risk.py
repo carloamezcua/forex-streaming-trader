@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta, timezone
 
 from common.contracts import SignalEvent
+from execution.executor import should_record_execution
+from execution.ib_client import OrderExecutionReport
 from execution.risk import RiskManager
 
 
@@ -88,3 +90,10 @@ def test_daily_order_limit_resets_next_utc_day():
     # Día siguiente UTC: contador reiniciado -> aprobada
     t_next_day = datetime(2026, 11, 24, 0, 0, 5, tzinfo=timezone.utc)
     assert rm.evaluate(_sig(ts=t_next_day), now=t_next_day).approved is True
+
+
+def test_should_record_execution_skips_unfilled_cancelled_orders():
+    assert should_record_execution(OrderExecutionReport(1, "Cancelled", 0.0, 0.0)) is False
+    assert should_record_execution(OrderExecutionReport(2, "Inactive", 0.0, 0.0)) is False
+    assert should_record_execution(OrderExecutionReport(3, "Filled", 10000.0, 1.0850)) is True
+    assert should_record_execution(OrderExecutionReport(4, "Submitted", 0.0, 0.0)) is True

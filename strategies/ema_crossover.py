@@ -39,8 +39,8 @@ class EmaCrossoverStrategy(BaseStrategy):
     def on_candle(self, candle: CandleEvent) -> SignalEvent | None:
         state = self._states.setdefault(candle.symbol, _EmaState())
 
-        # Deduplicar velas repetidas (protección at-least-once)
-        if state.last_inicio == candle.inicio:
+        # Ignorar velas repetidas o fuera de orden (protección at-least-once)
+        if state.last_inicio is not None and candle.inicio <= state.last_inicio:
             return None
         state.last_inicio = candle.inicio
 

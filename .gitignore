@@ -1,6 +1,7 @@
 .venv/
 .vscode/
 .local/
+docs/
 __pycache__/
 *.pyc
 .pytest_cache/

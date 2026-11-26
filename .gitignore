@@ -9,4 +9,5 @@ __pycache__/
 *.log
 spark-checkpoints/
 data/*.csv
+data/*.jsonl
 !data/.gitkeep
